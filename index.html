@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Vision Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background: #f4f7f6; }
+        .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+        .upload-box { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+        button { cursor: pointer; padding: 8px 12px; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-blue { background: #0078D4; color: white; }
+        .btn-red { background: #D13438; color: white; }
+        .btn-red:hover { background: #A80000; }
+        table { width: 100%; background: white; border-collapse: collapse; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #2b2b2b; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="header-controls">
+        <h1>AI Vision Dashboard</h1>
+        <div>
+            <button onclick="fetchData()">🔄 Refresh</button>
+            <button class="btn-red" onclick="deleteAllRecords()">🚨 Delete All</button>
+        </div>
+    </div>
+
+    <div class="upload-box">
+        <input type="file" id="imageInput">
+        <button class="btn-blue" onclick="uploadImage()">☁️ Extract Data</button>
+        <span id="statusMessage" style="margin-left: 10px; font-weight: bold;"></span>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Time</th><th>NID</th><th>Name</th><th>Phone</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <script>
+        // 1. Fetch Data
+        async function fetchData() {
+            const response = await fetch('http://127.0.0.1:5000/api/records');
+            const records = await response.json();
+            
+            let rows = '';
+            records.forEach(r => {
+                rows += `<tr>
+                            <td>${r.extraction_time}</td>
+                            <td>${r.nid}</td>
+                            <td>${r.name}</td>
+                            <td>${r.phone}</td>
+                            <td><button class="btn-red" style="padding:5px 10px; font-size:12px;" onclick="deleteRecord(${r.id})">🗑️ Delete</button></td>
+                         </tr>`;
+            });
+            document.getElementById('tableBody').innerHTML = rows;
+        }
+
+        // 2. Upload Data
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageInput');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            if (!fileInput.files[0]) {
+                alert("Please select an image first!");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            statusMessage.style.color = "#0078D4";
+            statusMessage.innerText = "Processing image with AI...";
+
+            await fetch('http://127.0.0.1:5000/api/extract', {
+                method: 'POST',
+                body: formData
+            });
+
+            statusMessage.style.color = "green";
+            statusMessage.innerText = "✅ Done!";
+            fileInput.value = ""; 
+            fetchData(); 
+        }
+
+        // 3. Delete Single Record
+        async function deleteRecord(id) {
+            if (confirm("Delete this record?")) {
+                await fetch('http://127.0.0.1:5000/api/records/' + id, { method: 'DELETE' });
+                fetchData();
+            }
+        }
+
+        // 4. Delete ALL Records
+        async function deleteAllRecords() {
+            if (confirm("🚨 Are you sure you want to delete ALL records? This will completely empty the database!")) {
+                await fetch('http://127.0.0.1:5000/api/records/all', { method: 'DELETE' });
+                fetchData();
+            }
+        }
+
+        window.onload = fetchData;
+    </script>
+
+</body>
+</html>
